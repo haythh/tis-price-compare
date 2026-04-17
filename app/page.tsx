@@ -295,7 +295,7 @@ export default function Home() {
             Tough Insights
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-white md:text-5xl">
-            TIS vs Fuel/KMC — MAP Price Comparison
+            TIS vs {selectedBrand === 'kmc' ? 'KMC' : selectedBrand === 'fuel' ? 'Fuel' : 'Fuel/KMC'} — MAP Price Comparison
           </h1>
           <p className="text-base text-zinc-400 md:text-lg">Exact size + finish matches only</p>
         </header>
@@ -324,7 +324,7 @@ export default function Home() {
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <StatCard label="Total Comparisons" value={stats.total.toLocaleString()} />
-          <StatCard label="Avg Fuel/KMC MAP" value={formatCurrency(stats.avgFuel)} />
+          <StatCard label={`Avg ${selectedBrand === 'kmc' ? 'KMC' : selectedBrand === 'fuel' ? 'Fuel' : 'Fuel/KMC'} MAP`} value={formatCurrency(stats.avgFuel)} />
           <StatCard label="Avg TIS MAP" value={formatCurrency(stats.avgTis)} />
           <StatCard label="Avg Savings w/ TIS" value={formatCurrency(stats.avgSavings)} />
           <StatCard label="% Where TIS is Cheaper" value={formatPercent(stats.percentCheaper)} />
@@ -335,7 +335,7 @@ export default function Home() {
           <div className="rounded-2xl border p-5" style={{ backgroundColor: card, borderColor: border }}>
             <div className="mb-4">
               <h2 className="text-lg font-medium text-white">Average MAP by Size</h2>
-              <p className="text-sm text-zinc-400">Fuel/KMC versus TIS average MAP on exact matches</p>
+              <p className="text-sm text-zinc-400">{selectedBrand === 'kmc' ? 'KMC' : selectedBrand === 'fuel' ? 'Fuel' : 'Fuel/KMC'} versus TIS average MAP on exact matches</p>
             </div>
             <div className="h-80 min-h-80">
               {mounted ? (
@@ -349,7 +349,7 @@ export default function Home() {
                       formatter={(value) => formatCurrency(Number(value ?? 0))}
                     />
                     <Legend />
-                    <Bar dataKey="fuel" name="Fuel/KMC" fill="#6b7280" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="fuel" name={selectedBrand === 'kmc' ? 'KMC' : selectedBrand === 'fuel' ? 'Fuel' : 'Fuel/KMC'} fill="#6b7280" radius={[6, 6, 0, 0]} />
                     <Bar dataKey="tis" name="TIS" fill={orange} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

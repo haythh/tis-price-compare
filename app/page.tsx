@@ -41,11 +41,36 @@ type ComparisonRow = {
   difference: number;
 };
 
+type BrandFilterKey = "all" | "fuel" | "kmc";
+
+type BrandTab = {
+  key: BrandFilterKey;
+  label: string;
+  matches: (row: ComparisonRow) => boolean;
+};
+
 const groupedSizeOrder = ["17\"", "18\"", "20\"", "22\"", "24\"", "26\""];
 const orange = "#f97316";
 const red = "#ef4444";
 const card = "#111111";
 const border = "#222222";
+const brandTabs: BrandTab[] = [
+  {
+    key: "all",
+    label: "All",
+    matches: () => true,
+  },
+  {
+    key: "fuel",
+    label: "Fuel",
+    matches: (row) => row.brand.toLowerCase().startsWith("fuel"),
+  },
+  {
+    key: "kmc",
+    label: "KMC",
+    matches: (row) => row.brand === "KMC",
+  },
+];
 
 function parseCurrency(value: string | undefined) {
   if (!value) return 0;
@@ -83,6 +108,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
 export default function Home() {
   const [rows, setRows] = useState<ComparisonRow[]>([]);
   const [query, setQuery] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState<BrandFilterKey>("all");
   const [sortKey, setSortKey] = useState<SortKey>("difference");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [mounted, setMounted] = useState(false);
@@ -123,8 +149,22 @@ export default function Home() {
       });
   }, []);
 
+  const brandCounts = useMemo(
+    () =>
+      brandTabs.reduce<Record<BrandFilterKey, number>>((counts, tab) => {
+        counts[tab.key] = rows.filter(tab.matches).length;
+        return counts;
+      }, { all: 0, fuel: 0, kmc: 0 }),
+    [rows],
+  );
+
+  const brandFilteredRows = useMemo(() => {
+    const selectedTab = brandTabs.find((tab) => tab.key === selectedBrand) ?? brandTabs[0];
+    return rows.filter(selectedTab.matches);
+  }, [rows, selectedBrand]);
+
   const stats = useMemo(() => {
-    if (!rows.length) {
+    if (!brandFilteredRows.length) {
       return {
         total: 0,
         avgFuel: 0,
@@ -135,25 +175,25 @@ export default function Home() {
       };
     }
 
-    const total = rows.length;
-    const fuelTotal = rows.reduce((sum, row) => sum + row.fuelMap, 0);
-    const tisTotal = rows.reduce((sum, row) => sum + row.tisMap, 0);
-    const cheaperRows = rows.filter((row) => row.tisMap < row.fuelMap);
+    const total = brandFilteredRows.length;
+    const fuelTotal = brandFilteredRows.reduce((sum, row) => sum + row.fuelMap, 0);
+    const tisTotal = brandFilteredRows.reduce((sum, row) => sum + row.tisMap, 0);
+    const cheaperRows = brandFilteredRows.filter((row) => row.tisMap < row.fuelMap);
 
     return {
       total,
       avgFuel: fuelTotal / total,
       avgTis: tisTotal / total,
-      avgSavings: rows.reduce((sum, row) => sum + row.difference, 0) / total,
+      avgSavings: brandFilteredRows.reduce((sum, row) => sum + row.difference, 0) / total,
       percentCheaper: (cheaperRows.length / total) * 100,
       maxSavings: cheaperRows.reduce((max, row) => Math.max(max, row.difference), 0),
     };
-  }, [rows]);
+  }, [brandFilteredRows]);
 
   const sizeChartData = useMemo(() => {
     const grouped = new Map<string, { fuelTotal: number; tisTotal: number; count: number }>();
 
-    rows.forEach((row) => {
+    brandFilteredRows.forEach((row) => {
       const bucket = normalizeSizeBucket(row.size);
       if (!groupedSizeOrder.includes(bucket)) return;
       const current = grouped.get(bucket) ?? { fuelTotal: 0, tisTotal: 0, count: 0 };
@@ -171,12 +211,12 @@ export default function Home() {
         tis: current.count ? Number((current.tisTotal / current.count).toFixed(0)) : 0,
       };
     });
-  }, [rows]);
+  }, [brandFilteredRows]);
 
   const finishChartData = useMemo(() => {
     const grouped = new Map<string, { savingsTotal: number; count: number }>();
 
-    rows.forEach((row) => {
+    brandFilteredRows.forEach((row) => {
       const key = row.finish || "Unknown";
       const current = grouped.get(key) ?? { savingsTotal: 0, count: 0 };
       current.savingsTotal += row.difference;
@@ -190,12 +230,12 @@ export default function Home() {
         savings: Number((value.savingsTotal / value.count).toFixed(0)),
       }))
       .sort((a, b) => b.savings - a.savings);
-  }, [rows]);
+  }, [brandFilteredRows]);
 
   const filteredRows = useMemo(() => {
     const search = query.trim().toLowerCase();
     const nextRows = search
-      ? rows.filter((row) =>
+      ? brandFilteredRows.filter((row) =>
           [
             row.partNumber,
             row.description,
@@ -209,7 +249,7 @@ export default function Home() {
             .toLowerCase()
             .includes(search),
         )
-      : rows;
+      : brandFilteredRows;
 
     return [...nextRows].sort((a, b) => {
       const aValue = a[sortKey];
@@ -222,7 +262,7 @@ export default function Home() {
 
       return String(aValue).localeCompare(String(bValue), undefined, { numeric: true }) * modifier;
     });
-  }, [query, rows, sortDirection, sortKey]);
+  }, [brandFilteredRows, query, sortDirection, sortKey]);
 
   function toggleSort(nextKey: SortKey) {
     if (sortKey === nextKey) {
@@ -259,6 +299,28 @@ export default function Home() {
           </h1>
           <p className="text-base text-zinc-400 md:text-lg">Exact size + finish matches only</p>
         </header>
+
+        <section className="flex flex-wrap gap-3">
+          {brandTabs.map((tab) => {
+            const isActive = tab.key === selectedBrand;
+
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setSelectedBrand(tab.key)}
+                className="rounded-full border px-4 py-2 text-sm font-medium transition"
+                style={{
+                  backgroundColor: isActive ? orange : card,
+                  borderColor: isActive ? orange : border,
+                  color: isActive ? "#0a0a0a" : "#f4f4f5",
+                }}
+              >
+                {tab.label} ({brandCounts[tab.key].toLocaleString()})
+              </button>
+            );
+          })}
+        </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <StatCard label="Total Comparisons" value={stats.total.toLocaleString()} />

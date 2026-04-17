@@ -41,20 +41,6 @@ type ComparisonRow = {
   difference: number;
 };
 
-type CsvPair = {
-  PartNumber?: string;
-  PartDescription?: string;
-  Brand?: string;
-  Size?: string;
-  BoltPattern?: string;
-  Offset?: string;
-  MAP_USD?: string;
-  Finish?: string;
-  TIS_Comparable_MAP?: string;
-  Price_Difference?: string;
-  Match_Type?: string;
-};
-
 const groupedSizeOrder = ["17\"", "18\"", "20\"", "22\"", "24\"", "26\""];
 const orange = "#f97316";
 const red = "#ef4444";
@@ -63,8 +49,8 @@ const border = "#222222";
 
 function parseCurrency(value: string | undefined) {
   if (!value) return 0;
-  const normalized = value.replace(/[$,\s]/g, "");
-  const parsed = Number(normalized);
+  const normalized = value.replace(/\$/g, "").trim().replace(/,/g, "");
+  const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -109,40 +95,27 @@ export default function Home() {
     fetch("/data.csv")
       .then((response) => response.text())
       .then((text) => {
-        const parsed = Papa.parse<string[]>(text, { skipEmptyLines: true });
-        const rawRows = parsed.data;
+        const parsed = Papa.parse<Record<string, string>>(text, {
+          header: true,
+          skipEmptyLines: true,
+          transformHeader: (header) => header.trim(),
+        });
         const nextRows: ComparisonRow[] = [];
 
-        for (let i = 2; i < rawRows.length; i += 2) {
-          const a = rawRows[i] ?? [];
-          const b = rawRows[i + 1] ?? [];
-          const pair: CsvPair = {
-            PartNumber: a[0],
-            PartDescription: a[1],
-            Brand: a[2],
-            Size: a[3],
-            BoltPattern: a[4],
-            Offset: a[5],
-            MAP_USD: a[7],
-            Finish: b[1],
-            TIS_Comparable_MAP: b[2],
-            Price_Difference: b[3],
-            Match_Type: b[4],
-          };
-
-          if (pair.Match_Type !== "exact") continue;
+        for (const row of parsed.data) {
+          if (row.Match_Type?.trim() !== "exact") continue;
 
           nextRows.push({
-            partNumber: pair.PartNumber ?? "",
-            description: pair.PartDescription ?? "",
-            brand: pair.Brand ?? "",
-            size: pair.Size ?? "",
-            boltPattern: pair.BoltPattern ?? "",
-            offset: pair.Offset ?? "",
-            finish: pair.Finish ?? "",
-            fuelMap: parseCurrency(pair.MAP_USD),
-            tisMap: parseCurrency(pair.TIS_Comparable_MAP),
-            difference: parseCurrency(pair.Price_Difference),
+            partNumber: row.PartNumber || "",
+            description: row.PartDescription || "",
+            brand: row.Brand || "",
+            size: row.Size || "",
+            boltPattern: row.BoltPattern || "",
+            offset: row.Offset || "",
+            finish: row.Finish || "",
+            fuelMap: parseCurrency(row.MAP_USD),
+            tisMap: parseCurrency(row.TIS_Comparable_MAP),
+            difference: parseCurrency(row.Price_Difference),
           });
         }
 

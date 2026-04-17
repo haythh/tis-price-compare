@@ -295,7 +295,7 @@ export default function Home() {
             Tough Insights
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-white md:text-5xl">
-            TIS vs {selectedBrand === 'kmc' ? 'KMC' : selectedBrand === 'fuel' ? 'Fuel' : 'Fuel/KMC'} — MAP Price Comparison
+            TIS Competitor MAP Comparison
           </h1>
           <p className="text-base text-zinc-400 md:text-lg">Exact size + finish matches only</p>
         </header>
